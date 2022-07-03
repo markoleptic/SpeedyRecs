@@ -1,0 +1,366 @@
+---
+title: "Project"
+author: "Mark Cunningham, Ethan Saloom, Branson Stickney"
+date:  "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: show
+    csl: biomed-central.csl
+    df_print: paged
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 7
+    number_sections: yes
+    theme: journal
+    toc: yes
+    toc_float: yes
+  word_document:
+    toc: yes
+    toc_depth: 4
+  pdf_document:
+    df_print: kable
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 7
+    highlight: tango
+    toc: yes
+    toc_depth: 4
+---
+
+# Data Preprocessing
+
+## Library Imports
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(leaflet)
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(tidyr)
+library(ggpubr)
+library(recommenderlab)
+library(data.table)
+library(reshape2)
+library(Matrix)
+library(factoextra)
+library(knitr)
+library(kableExtra)
+library(stringr)
+library(proxy)
+```
+## Dataframe Imports
+
+```{r}
+anime_df <- read.csv("anime.csv")
+ratings_df <- read.csv("rating_complete.csv")
+```
+
+## Filtering out explicit content and Subsetting Irrelevant Columns
+
+```{r}
+# Filtering out explicit anime from anime_df
+# Filtering out anime with no English names, or less than 1000 complete watches
+anime_df <- anime_df %>% filter(!(grepl("Hentai",Genres)|Score=="Unknown"|English.name=="Unknown") & anime_df$Completed > 1000) 
+
+# Updating ratings dataframe with anime datframe
+ratings_df <- ratings_df[(ratings_df$anime_id %in% anime_df$MAL_ID),]
+
+anime_df <- subset(anime_df, select=-c(Japanese.name,Producers,Licensors,Favorites,Watching,On.Hold,Plan.to.Watch,Score.10,Score.9,Score.8,Score.7,Score.6,Score.5,Score.4,Score.3,Score.2,Score.1))
+```
+
+```{r}
+#Old code:
+#hentai_df <- anime_df %>% filter(grepl("Hentai",Genres)|Score=="Unknown")
+#anime_df <- anime_df %>% filter(Score!="Unknown") %>% filter(!grepl("Hentai",Genres))
+#ratings_df<-ratings_df[!(ratings_df$anime_id %in% hentai_df$MAL_ID),]  
+
+
+#More old code:
+#Filter only anime with greater than 200 ratings and users with 200 ratings
+#ratings_df <- ratings_df %>% 
+#  group_by(anime_id) %>%
+#  filter(n()>200) %>%
+#  ungroup() %>%
+#  group_by(user_id) %>%
+#  filter(n()>400)  %>%
+#  ungroup()
+
+#Group by user_id, sample 5000 users, ungroup
+#ratings_df <- ratings_df %>% group_by(user_id,)
+#user_sample <- sample(nrow(ratings_df), 5000)
+#ratings_df_sample <- ratings_df[user_sample,]
+#ratings_df_sample %>% ungroup()
+```
+
+## Previewing the Data
+
+```{r}
+kable(head(anime_df, n = 10L)) %>%
+  column_spec(7,width="3in") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),full_width = F) %>%
+  row_spec(0,bold = T, color = "black", background = "#fc5e5e") %>%
+  row_spec(1:10,bold = T, color = "black") %>%
+  column_spec(1:17,color="black",width="18em") 
+
+kable(head(ratings_df, n = 10L)) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed")) %>%
+  row_spec(0,bold = T, color = "white", background = "#fc5e5e") %>%
+  scroll_box(width = "100%", height = "200px")
+
+anime_df %>%
+  ggplot(aes(x=Type)) +
+  geom_bar(stat = "count", fill = "#fc5e5e" ) +
+  ggtitle("Anime Type Distribution")
+```
+
+## Sampling
+
+```{r}
+#Unlist data so it can be transformed into realRatingMatrix
+ratings_df$user_id <- as.numeric(unlist(ratings_df$user_id))
+ratings_df$anime_id <- as.numeric(unlist(ratings_df$anime_id))
+ratings_df$rating <- as.numeric(unlist(ratings_df$rating))
+ratings_df<-as.data.frame(ratings_df)
+
+set.seed(1234)
+#Convert rating matrix into a recommenderlab sparse matrix
+ratingmat <- as(ratings_df, "realRatingMatrix")
+ratingmat
+#Filter for anime that has 1000 or more ratings, and users who have greater than 100 anime reviews
+ratingmat <- ratingmat[rowCounts(ratingmat) > 100, colCounts(ratingmat) > 1000]
+ratingmat
+object.size(ratingmat)
+```
+
+
+```{r}
+set.seed(1234)
+#Sample of rating matrix
+ratingmat_sample <- sample(ratingmat, 5000)
+ratingmat_sample
+object.size(ratingmat_sample)
+```
+
+## Preview Rating Distribution
+
+```{r}
+#Histograms
+hist(getRatings(ratingmat_sample), breaks=100)
+hist(getRatings(normalize(ratingmat_sample,method="Z-score")),breaks=100)
+hist(rowCounts(ratingmat_sample),breaks=50,xlim=range(0:1000))
+```
+
+
+## Top Ten Most Viewed Anime in Sample
+
+```{r}
+views_per_anime <- colCounts(ratingmat_sample)
+table_views <- data.frame(anime_names = names(views_per_anime), views = views_per_anime)
+names(table_views)[names(table_views) == "anime_names"] <- "anime_id"
+ratingmat_sample_df <- as(ratingmat_sample, "data.frame")
+anime_df_sample <- anime_df[(anime_df$MAL_ID %in% ratingmat_sample_df$item),]
+anime_df_sample = dplyr::rename(anime_df_sample, anime_id = MAL_ID)
+
+table_views <- merge(table_views, anime_df_sample, by="anime_id")
+table_views <- table_views[order(table_views$views, decreasing = TRUE), ]
+
+ggplot(table_views[1:10, ], aes(x = reorder(Name, -views), y = views)) + 
+  xlab("") + ylab("Number of Participants") + xlab("Anime Name") +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10))+ 
+  ggtitle("Top 10 Viewed Anime in Sample")
+
+```
+
+## Similarity
+
+```{r}
+image(ratingmat_sample[1:100, 1:100], main = "First 100 users and anime items: Top Anime (Non-Normalized)")
+
+ratingmat_norm <- normalize(ratingmat_sample)
+avg <- round(rowMeans(ratingmat_norm), 5)
+
+image(ratingmat_norm[1:100, 1:100], main = "First 100 users and anime items: Top Anime (Normalized)")
+
+similarity_users <- similarity(ratingmat_norm[1:100,], 
+                               method = "cosine", 
+                               which = "users")
+image(as.matrix(similarity_users), main = "User Similarity")
+
+similarity_anime <- similarity(ratingmat_norm[,1:100], 
+                               method = "cosine", 
+                               which = "items")
+image(as.matrix(similarity_anime), main = "Anime Similarity")
+```
+
+
+
+# Creating the Algorithms
+
+## Splitting the Data
+
+```{r}
+min(rowCounts(ratingmat_sample))
+```
+
+```{r}
+anime_eval <- evaluationScheme(data = ratingmat_sample, method = "split", 
+                                     train = 0.8, given = min(rowCounts(ratingmat_sample)), goodRating = 7) 
+anime_eval
+```
+
+## Which models are available in recommenderlab?
+
+```{r}
+recommender_models <- recommenderRegistry$get_entries(dataType ="realRatingMatrix")
+recommender_models$IBCF_realRatingMatrix$parameters
+recommender_models$UBCF_realRatingMatrix$parameters
+```
+
+## Item-Based Collaborative Filtering
+
+```{r}
+ibcf_model <- Recommender(getData(anime_eval,"train"), 
+                          method = "IBCF")
+ibcf_model
+```
+
+## User-Based Collaborative Filtering
+
+```{r}
+ubcf_model <- Recommender(getData(anime_eval,"train"), 
+                          method = "UBCF")
+ubcf_model
+```
+
+```{r}
+ibcf_predict <- predict(ibcf_model, getData(anime_eval, "known"), type="ratings")
+ubcf_predict <- predict(ubcf_model, getData(anime_eval, "known"), type="ratings")
+
+error <- rbind(IBCF = calcPredictionAccuracy(ibcf_predict, getData(anime_eval, "unknown")),
+               UBCF = calcPredictionAccuracy(ubcf_predict, getData(anime_eval, "unknown")))
+error
+
+#image(getModel(ibcf_model)$sim,
+      #main = "Heatmap of the first rows and columns")
+#image(getModel(ubcf_model)$sim,
+#     main = "Heatmap of the first rows and columns")
+```
+
+## What all can we do with the models?
+
+```{r}
+names(getModel(ubcf_model))
+names(getModel(ibcf_model))
+```
+
+## Recommendations for Users
+
+RecommenderLab creates predictions using predict() and creates an object of class TopNList.
+
+### UBCF
+
+```{r}
+ubcf_model_test <- Recommender(ratingmat_sample,method="UBCF")
+recom<-predict(ubcf_model_test, ratingmat_sample[1],n=5)
+#class(recom)
+
+getAnimeNames <- function(df) {
+  out = as.data.frame(matrix(ncol=1,nrow=5))
+  names(out)[1] <- 'Anime Name'
+  for(i in 1:nrow(df)) {
+      value <- df[[i,1]]
+      row <- which(anime_df[["MAL_ID"]]==value)
+      out[i,1] <- anime_df[row,5]
+  }
+  return(out)
+}
+recommend_example_ubcf <- getAnimeNames(as.data.frame(as(recom,"list")))
+recommend_example_ubcf 
+getList(bestN(recom, 3))[[1]]
+getList(recom)
+```
+
+### IBCF
+
+```{r}
+recom<-predict(ibcf_model, ratingmat[1001],n=5)
+recommend_example_ibcf <- getAnimeNames(as.data.frame(as(recom,"list")))
+recommend_example_ibcf 
+
+getList(recom)
+```
+
+
+```{r}
+recom_list <- as(recom,"list")
+getAnimeNames(as.data.frame(as(recom,"list")))
+getList(recom)
+```
+
+
+```{r}
+#anime_1_id <- which(anime_df_sample[,5]== anime_1)
+  #anime_2_id <- which(anime_df_sample[,5]== anime_2)
+  #anime_3_id <- which(anime_df_sample[,5]== anime_3)
+ # anime_4_id <- which(anime_df_sample[,5]== anime_4)
+  #anime_5_id <- which(anime_df_sample[,5]== anime_5)
+  user <- c(9,9,9,9,9)
+  item <- c(16498, 1535, 39587, 47,30276)
+  rating <- c(9,8,9,8,7)
+  user_ratings <- data.frame(user,item, rating)
+  #row_num <- which(movies2[,2] == input)
+  user_ratings$item <- as.character(unlist(user_ratings$item))
+  user_ratings$rating <- as.numeric(unlist(user_ratings$rating))
+  user_ratings<-as.data.frame(user_ratings)
+  ratingmat_sample_df <- as(ratingmat_sample, "data.frame")
+  ratingmat_sample_df$user <- as.numeric(ratingmat_sample_df$user)
+  ratingmat_sample_df$item <- as.character(ratingmat_sample_df$item)
+  ratingmat_sample_df<-ratingmat_sample_df[order(as.numeric(row.names(ratingmat_sample_df))),]
+  user_rating_mat5 <- rbind(user_ratings,ratingmat_sample_df)
+  user_rating_mat5$user <- as.numeric(user_rating_mat5$user)
+  user_rating_mat5$item <- as.character(user_rating_mat5$item)
+  user_rating_mat6<- as(user_rating_mat5, "realRatingMatrix")
+```
+
+
+```{r}
+  user_rating_mat <- dcast(ratingmat_sample_df, user~item, value.var = "rating", na.rm=FALSE)
+  user_rating_mat2 <- user_rating_mat[,-1]
+  tmp = matrix(NA,1,3140)
+  colnames(tmp) <- colnames(user_rating_mat2)
+  tmp[1,"16498"] <- 7
+  tmp[1,"1535"] <- 7
+  tmp[1,"39587"] <- 7
+  tmp[1,"47"] <- 7
+  tmp[1,"30276"] <- 7
+  user_rating_mat3 <- rbind(tmp,user_rating_mat2)
+  user_rating_mat3 <- proxy::as.matrix(user_rating_mat3)
+```
+
+
+```{r}
+#Convert rating matrix into a sparse matrix
+  # user_rating_mat3<- as(user_rating_mat3, "realRatingMatrix")
+  # temp1 <- dcast(ratingmat_sample_df, user~item, value.var = "rating", na.rm=FALSE)
+  # tmp = matrix(NA,1,3140)
+  # temp2 <- temp1[,-1]
+  # colnames(tmp)=colnames(temp2)
+  # tmp[1, user_ratings$item] = user_ratings$rating
+  # user_rating_mat <- rbind(tmp,temp2)
+  # user_rating_mat <- as.matrix(user_rating_mat)
+  # user_rating_mat <- as(user_rating_mat,"realRatingMatrix")
+  
+recommender_model <- Recommender(user_rating_mat6, method = "UBCF")
+recom <- predict(recommender_model, user_rating_mat6[1], n=5)
+recom_list <- as(recom, "list")
+getAnimeNames(as.data.frame(as(recom,"list")))
+```
+
+
+```{r}
+as(user_rating_mat3,data.frame)
+user_rating_mat3[1]
+```
+
