@@ -4,6 +4,12 @@ library(proxy)
 library(recommenderlab)
 library(reshape2)
 source("userrecommender.R")
+load("anime_eval_schemes.rda")
+load("ibcf_models.rda")
+load("ubcf_models.rda")
+load("als_models.rda")
+load("svd_models.rda")
+load("prediction_models.rda")
 
 #UI
 ui <- ((fluidPage(  
@@ -58,6 +64,7 @@ ui <- ((fluidPage(
         )),
       actionButton("returnIBCF", "Get Recommendations using IBCF"),
       actionButton("returnUBCF", "Get Recommendations using UBCF"),
+      actionButton("returnALS", "Get Recommendations using ALS"),
       actionButton("returnSVD", "Get Recommendations using SVD"),
       actionButton("returnHybrid", "Get Recommendations using Hybrid"),
       hr()
@@ -118,6 +125,13 @@ server <- (function(input, output, session) {
     })
   })
 
+  observeEvent(input$returnALS, {
+    output$rec_text <- renderText("Recommendations Using ALS:")
+    output$table <- renderTable({
+      get_als_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5)
+    })
+  })
+  
   observeEvent(input$returnSVD, {
     output$rec_text <- renderText("Recommendations Using SVD:")
     output$table <- renderTable({

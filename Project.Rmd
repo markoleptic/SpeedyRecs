@@ -3,28 +3,27 @@ title: "Project"
 author: "Mark Cunningham, Ethan Saloom, Branson Stickney"
 date:  "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  html_document:
-    code_folding: show
-    csl: biomed-central.csl
-    df_print: paged
-    fig_caption: yes
-    fig_height: 6
-    fig_width: 7
-    number_sections: yes
-    theme: journal
+  pdf_document:
+    #df_print: kable
+    #fig_caption: yes
+    #fig_height: 6
+    #fig_width: 7
+    #highlight: tango
     toc: yes
-    toc_float: yes
+    toc_depth: 4
   word_document:
     toc: yes
     toc_depth: 4
-  pdf_document:
-    df_print: kable
+  html_document:
+    #code_folding: show
+    #csl: biomed-central.csl
+    df_print: paged
     fig_caption: yes
-    fig_height: 6
-    fig_width: 7
-    highlight: tango
+    #fig_height: 6
+    #fig_width: 7
+    theme: journal
     toc: yes
-    toc_depth: 4
+    toc_float: yes
 ---
 
 # Data Preprocessing
@@ -32,7 +31,9 @@ output:
 ## Library Imports
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,row.print=10)
+
+#source("userrecommender.R")
 library(leaflet)
 library(dplyr)
 library(plyr)
@@ -49,16 +50,17 @@ library(kableExtra)
 library(stringr)
 library(proxy)
 ```
+
 ## Dataframe Imports
 
-```{r}
+```{r, echo = T, results = 'hide'}
 anime_df <- read.csv("anime.csv")
 ratings_df <- read.csv("rating_complete.csv")
 ```
 
 ## Filtering out explicit content and Subsetting Irrelevant Columns
 
-```{r}
+```{r, echo = T, results = 'hide'}
 # Filtering out explicit anime from anime_df
 # Filtering out anime with no English names, or less than 1000 complete watches
 anime_df <- anime_df %>% filter(!(grepl("Hentai",Genres)|Score=="Unknown"|English.name=="Unknown") & anime_df$Completed > 1000) 
@@ -69,54 +71,22 @@ ratings_df <- ratings_df[(ratings_df$anime_id %in% anime_df$MAL_ID),]
 anime_df <- subset(anime_df, select=-c(Japanese.name,Producers,Licensors,Favorites,Watching,On.Hold,Plan.to.Watch,Score.10,Score.9,Score.8,Score.7,Score.6,Score.5,Score.4,Score.3,Score.2,Score.1))
 ```
 
-```{r}
-#Old code:
-#hentai_df <- anime_df %>% filter(grepl("Hentai",Genres)|Score=="Unknown")
-#anime_df <- anime_df %>% filter(Score!="Unknown") %>% filter(!grepl("Hentai",Genres))
-#ratings_df<-ratings_df[!(ratings_df$anime_id %in% hentai_df$MAL_ID),]  
-
-
-#More old code:
-#Filter only anime with greater than 200 ratings and users with 200 ratings
-#ratings_df <- ratings_df %>% 
-#  group_by(anime_id) %>%
-#  filter(n()>200) %>%
-#  ungroup() %>%
-#  group_by(user_id) %>%
-#  filter(n()>400)  %>%
-#  ungroup()
-
-#Group by user_id, sample 5000 users, ungroup
-#ratings_df <- ratings_df %>% group_by(user_id,)
-#user_sample <- sample(nrow(ratings_df), 5000)
-#ratings_df_sample <- ratings_df[user_sample,]
-#ratings_df_sample %>% ungroup()
-```
-
 ## Previewing the Data
 
 ```{r}
-kable(head(anime_df, n = 10L)) %>%
-  column_spec(7,width="3in") %>%
-  kable_styling(bootstrap_options = c("striped", "condensed"),full_width = F) %>%
-  row_spec(0,bold = T, color = "black", background = "#fc5e5e") %>%
-  row_spec(1:10,bold = T, color = "black") %>%
-  column_spec(1:17,color="black",width="18em") 
+glimpse(head(anime_df))
 
-kable(head(ratings_df, n = 10L)) %>%
-  kable_styling(bootstrap_options = c("striped", "condensed")) %>%
-  row_spec(0,bold = T, color = "white", background = "#fc5e5e") %>%
-  scroll_box(width = "100%", height = "200px")
+glimpse(head(ratings_df))
 
 anime_df %>%
-  ggplot(aes(x=Type)) +
-  geom_bar(stat = "count", fill = "#fc5e5e" ) +
-  ggtitle("Anime Type Distribution")
+ggplot(aes(x=Type)) +
+geom_bar(stat = "count", fill = "#fc5e5e" ) +
+ggtitle("Anime Type Distribution")
 ```
 
 ## Sampling
 
-```{r}
+```{r, echo = T, results = 'hide'}
 #Unlist data so it can be transformed into realRatingMatrix
 ratings_df$user_id <- as.numeric(unlist(ratings_df$user_id))
 ratings_df$anime_id <- as.numeric(unlist(ratings_df$anime_id))
@@ -127,50 +97,101 @@ set.seed(1234)
 #Convert rating matrix into a recommenderlab sparse matrix
 ratingmat <- as(ratings_df, "realRatingMatrix")
 ratingmat
+
 #Filter for anime that has 1000 or more ratings, and users who have greater than 100 anime reviews
 ratingmat <- ratingmat[rowCounts(ratingmat) > 100, colCounts(ratingmat) > 1000]
 ratingmat
 object.size(ratingmat)
+
+ratingmat_filtered <- as(ratingmat,"data.frame")
 ```
 
+The size of the rating matrix is still too big for use with Recommenderlab functions, so we will randomly sample 5000 users. This will only compromise very unpopular anime, which is a sacrifice worth making.
 
 ```{r}
-set.seed(1234)
+set.seed(123)
 #Sample of rating matrix
-ratingmat_sample <- sample(ratingmat, 5000)
+ratingmat_sample <- sample(ratingmat, 1000)
 ratingmat_sample
 object.size(ratingmat_sample)
+
+ratingmat_sample_filtered <- as(ratingmat_sample,"data.frame")
+anime_id_sample_filtered <- ratingmat_sample_filtered[,2]
+anime_id_sample_filtered <- anime_id_sample_filtered[!duplicated(anime_id_sample_filtered)]
+anime_id_sample_filtered <- as.data.frame(anime_id_sample_filtered)
+colnames(anime_id_sample_filtered)[1] <- "item"
+anime_id_sample_filtered$item <- as.character(unlist(anime_id_sample_filtered$item))
+anime_df_sample <- anime_df[(anime_df$MAL_ID %in% anime_id_sample_filtered$item),]
 ```
 
 ## Preview Rating Distribution
 
-```{r}
-#Histograms
-hist(getRatings(ratingmat_sample), breaks=100)
-hist(getRatings(normalize(ratingmat_sample,method="Z-score")),breaks=100)
-hist(rowCounts(ratingmat_sample),breaks=50,xlim=range(0:1000))
+```{r, warning=FALSE}
+ratingmat_sample_df <- as(ratingmat_sample,"data.frame")
+ratingmat_sample_df_normalized <- as.data.frame(getRatings(normalize(ratingmat_sample,method="Z-score")))
+ratingmat_colcounts <- as.data.frame(colCounts(ratingmat_sample))
+ratingmat_colcounts[ "MAL_ID" ] <- rownames(ratingmat_colcounts)
+ratingmat_colcounts <- ratingmat_colcounts[,c(2,1)]
+anime_id_ratingmat_colcounts <- ratingmat_colcounts[,1]
+anime_id_ratingmat_colcounts<- as.data.frame(anime_id_ratingmat_colcounts)
+ratingmat_rowcounts <- as.data.frame(rowCounts(ratingmat_sample))
+
+getAnimeNames <- function(df) {
+  # function that takes as input a list of MAL_ID, 
+  # and returns a data frame containing the corresponding English names
+  out = as.data.frame(matrix(ncol=1,nrow=3140))
+  names(out)[1] <- 'Anime Name'
+  for(i in 1:nrow(df)) {
+    value <- df[[i,1]]
+    row <- which(anime_df[["MAL_ID"]]==value)
+    out[i,1] <- anime_df[row,5]
+  }
+  return(out)
+}
+
+rating_counts <- getAnimeNames(anime_id_ratingmat_colcounts)
+rating_counts <- cbind(rating_counts,ratingmat_colcounts)
+names(rating_counts)[3] <- "Num_Ratings"
+names(rating_counts)[1] <- "Anime_Name"
+rating_counts <- rating_counts %>% arrange(rating_counts$Num_Ratings, decreasing = TRUE)
+rating_counts[8,1] <- "Fullmetal Alchemist: Brotherhood"
+rating_counts[7,1] <- "Code Geass: Lelouch of the Rebellion"
 ```
 
 
-## Top Ten Most Viewed Anime in Sample
+```{r, warning=FALSE}
+rating_counts[1:10,] %>%
+  ggplot(aes(x = reorder(Anime_Name, -Num_Ratings),y=Num_Ratings,fill=Num_Ratings)) +
+  scale_fill_continuous(low="blue", high="red") +
+  scale_x_discrete(labels = scales::wrap_format(8))+
+  geom_bar(stat='identity') +
+  xlab("Anime Name" )+
+  ylab("Number of Ratings" )+
+  ggtitle("Most Rated Anime from Sample") + 
+  theme(legend.position="none")
 
-```{r}
-views_per_anime <- colCounts(ratingmat_sample)
-table_views <- data.frame(anime_names = names(views_per_anime), views = views_per_anime)
-names(table_views)[names(table_views) == "anime_names"] <- "anime_id"
-ratingmat_sample_df <- as(ratingmat_sample, "data.frame")
-anime_df_sample <- anime_df[(anime_df$MAL_ID %in% ratingmat_sample_df$item),]
-anime_df_sample = dplyr::rename(anime_df_sample, anime_id = MAL_ID)
+ggplot(data=ratingmat_sample_df,aes(x=rating,y=..count..,fill=..count..)) +
+  geom_bar() +
+  scale_fill_continuous(low="blue", high="red") +
+  scale_x_continuous(limits = c(0,11),breaks = seq(-1,10,1)) +
+  ggtitle("Distribution of Ratings") + 
+  theme(legend.position="none")
 
-table_views <- merge(table_views, anime_df_sample, by="anime_id")
-table_views <- table_views[order(table_views$views, decreasing = TRUE), ]
+ggplot(data=ratingmat_sample_df_normalized,aes(x=`getRatings(normalize(ratingmat_sample, method = "Z-score"))`,y=..count..,fill=..count..)) +
+  geom_histogram(binwidth = 0.05) +
+  scale_fill_continuous(low="blue", high="red") +
+  xlim(-5,5)+
+  xlab("Rating (Normalized)" )+
+  ggtitle("Distribution of Ratings, Normalized") + 
+  theme(legend.position="none")
 
-ggplot(table_views[1:10, ], aes(x = reorder(Name, -views), y = views)) + 
-  xlab("") + ylab("Number of Participants") + xlab("Anime Name") +
-  geom_bar(stat = "identity") +
-  scale_x_discrete(labels = function(x) str_wrap(x, width = 10))+ 
-  ggtitle("Top 10 Viewed Anime in Sample")
-
+ggplot(data=ratingmat_rowcounts,aes(x=`rowCounts(ratingmat_sample)`,y=..count..,fill=..count..)) +
+  geom_histogram(binwidth = 10) +
+  scale_fill_continuous(low="blue", high="red") +
+  scale_x_continuous(limits = c(100,1500),breaks = seq(0,1500,100)) +
+  xlab("Ratings per User") +
+  ggtitle("Number of Ratings per User") + 
+  theme(legend.position="none")
 ```
 
 ## Similarity
@@ -193,174 +214,430 @@ similarity_anime <- similarity(ratingmat_norm[,1:100],
                                which = "items")
 image(as.matrix(similarity_anime), main = "Anime Similarity")
 ```
-
-
+Using similarity, we can see that users have more in common than do items, but this is only a preview of the first 100 users and items.
 
 # Creating the Algorithms
 
-## Splitting the Data
+## Creating Evualuation Schemes
+
+This Value represents the minimum value we can choose for the "given" parameter of the evaluationScheme function, which is the number of ratings given per user. We can also choose to implement an all-but-x scheme, where given takes in all ratings except for a user specified number of them.
+Example: given =-5 excludes 5 ratings from all users to be used in the test set.
+
+In order to evaluate our algorithms, RecommenderLab uses the evaluationScheme function to split the data into train/test sets. There are a few methods available to use, most notably the split and cross methods. 
+
+The split which splits the users into two groups based on the value of the train parameter and uses the first half of the split to train the model, and the second half to evaluate the model. If using an all-but-x scheme, then the scheme uses only the second half of the split to exclude ratings from.
+Example: method="split", train = 0.9, given = -5  excludes 5 ratings from 10% of users to be used in the test set.
+
+The cross method uses k-fold cross validation and uses the user specified k-value as the number of folds.
+
+To speed up loading, we have already created evaluation schemes and saved them as .rda files, which we load now.
 
 ```{r}
-min(rowCounts(ratingmat_sample))
-```
-
-```{r}
-anime_eval <- evaluationScheme(data = ratingmat_sample, method = "split", 
-                                     train = 0.8, given = min(rowCounts(ratingmat_sample)), goodRating = 7) 
-anime_eval
+anime_eval_split_min <- evaluationScheme(data = ratingmat_sample,
+                               method = "split",
+                               train = 0.8,
+                               given = min(rowCounts(ratingmat_sample)),
+                               goodRating = 5)
+anime_eval_split_allbut5 <- evaluationScheme(data = ratingmat_sample,
+                               method = "split",
+                               train = 0.8,
+                               given = -5,
+                               goodRating = 5)
+anime_eval_cross_allbut5 <- evaluationScheme(data = ratingmat_sample,
+                               method = "cross",
+                               k=4,
+                               given = -5,
+                               goodRating = 5)
+anime_eval_cross_min <- evaluationScheme(data = ratingmat_sample,
+                               method = "cross",
+                               k=4,
+                               given = min(rowCounts(ratingmat_sample)),
+                               goodRating = 5)
+save(anime_eval_split_min, anime_eval_split_allbut5,anime_eval_cross_allbut5, anime_eval_cross_min,file="anime_eval_schemes.rda")
+load("anime_eval_schemes.rda")
 ```
 
 ## Which models are available in recommenderlab?
 
 ```{r}
-recommender_models <- recommenderRegistry$get_entries(dataType ="realRatingMatrix")
-recommender_models$IBCF_realRatingMatrix$parameters
-recommender_models$UBCF_realRatingMatrix$parameters
+recommenderRegistry$get_entry_names()
 ```
 
-## Item-Based Collaborative Filtering
+## Item-Based Collaborative Filtering Model
+
+### Which value of k (number of closest anime to store for each item) to choose?
+
+We have created data structures that contain the results of running time intensive error calculations for 10 different k-values, for both of the following evaluation schemes:
+
+### K-Value Error IBCF Split using Minimum number ratings as Given
 
 ```{r}
-ibcf_model <- Recommender(getData(anime_eval,"train"), 
-                          method = "IBCF")
-ibcf_model
+load(file="kvalue_nn_errors.rda")
+ggplot(data=kvalue_error_IBCF_split_min, aes(k_value,value,col=variable)) +
+  geom_point() +
+  labs(x="K Value (Number of Items)") +
+  labs(y="Error Value") +
+  labs(col="Error Type") +
+  scale_x_continuous(limits = c(10,100),breaks = seq(0,100,10)) +
+  ggtitle("Error Values for Different K Values, IBCF with Minimum Value Given")
 ```
 
-## User-Based Collaborative Filtering
+
+The error seems to be lowest at small values of K.
+
+
+### K-Value Error IBCF Split using all-but-5 ratings as Given
 
 ```{r}
-ubcf_model <- Recommender(getData(anime_eval,"train"), 
-                          method = "UBCF")
-ubcf_model
+ggplot(data=kvalue_error_IBCF_split_allbut5, aes(k_value,value,col=variable)) +
+  geom_point() +
+  labs(x="K Value (Number of Items)") +
+  labs(y="Error Value") +
+  labs(col="Error Type") +
+  scale_x_continuous(limits = c(10,100),breaks = seq(0,100,10)) +
+  ggtitle("Error Values for Different K Values, IBCF with Given = All But 5")
+```
+
+The values seems to be lowest at low values of K.
+
+### IBCF Models
+
+```{r}
+# ibcf_model <- Recommender(getData(anime_eval_split_min,"train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50))
+# ibcf_model2 <- Recommender(getData(anime_eval_split_allbut5,"train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50))
+# ibcf_model3 <- Recommender(getData(anime_eval_cross_allbut5,"train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50))
+# ibcf_model4 <- Recommender(getData(anime_eval_cross_min,"train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50))
+# save(ibcf_model,ibcf_model2,ibcf_model3,ibcf_model4, file="ibcf_models.rda")
+# Loading model objects to save time
+load("ibcf_models.rda")
+```
+
+## User-Based Collaborative Filtering Model
+
+### Which value of nn (number of nearest neighbors) to choose?
+
+We have created data structures that contain the results of running time intensive error calculations for 10 different nn-values, for both of the following evaluation schemes:
+
+### NN-Value Error UBCF Split using Minimum number ratings as Given
+
+```{r}
+ggplot(data=nn_error_UBCF_split_min) +
+  geom_point(mapping = aes(nn_number,value,col=variable)) +
+  labs(x="nn Value") +
+  labs(y="Error Value") +
+  labs(col="Error Type") +
+  scale_x_continuous(limits = c(10,100),breaks = seq(0,100,10)) +
+  ggtitle("Error Values for Different K Values, UBCF with Given = 89")
+```
+
+The larger the nn Value, the lower the error.
+
+### NN-Value Error UBCF Split using all-but-5 as Given
+
+```{r}
+ggplot(data=nn_error_UBCF_split_allbut5) +
+  geom_point(mapping = aes(nn_number,value,col=variable)) +
+  labs(x="nn Value") +
+  labs(y="Error Value") +
+  labs(col="Error Type") +
+  scale_x_continuous(limits = c(10,100),breaks = seq(0,100,10)) +
+  ggtitle("Error Values for Different K Values, UBCF with Given = All But 5")
+```
+
+We can see that increasing the number of nearest neighbors decreases all types of errors, but it would also increase computation time. We choose nn=50 as it is a good compromise of accuracy and computation time.
+
+### UBCF Models
+
+```{r}
+# ubcf_model <- Recommender(getData(anime_eval_split_min,"train"),method = "UBCF",param = list(normalize = "center",method="Cosine",nn=50))
+# ubcf_model2 <- Recommender(getData(anime_eval_split_allbut5,"train"),method = "UBCF",param = list(normalize = "center",method="Cosine",nn=50))
+# ubcf_model3 <- Recommender(getData(anime_eval_cross_allbut5,"train"),method = "UBCF",param = list(normalize = "center",method="Cosine",nn=50))
+# ubcf_model4 <- Recommender(getData(anime_eval_cross_min,"train"),method = "UBCF",param = list(normalize = "center",method="Cosine",nn=50))
+# 
+# save(ubcf_model,ubcf_model2,ubcf_model3,ubcf_model4, file="ubcf_models.rda")
+# Loading model objects to save time
+load("ubcf_models.rda")
+```
+
+## Alternating Least Squares Model
+
+```{r}
+# als_model <- Recommender(getData(anime_eval_split_min,"train"), method = "ALS", param =list(n_factors=10, n_iterations = 5))
+# als_model2 <- Recommender(getData(anime_eval_split_allbut5,"train"), method = "ALS", param =list(n_factors=10, n_iterations = 5))
+# als_model3 <- Recommender(getData(anime_eval_cross_allbut5,"train"), method = "ALS", param =list(n_factors=10, n_iterations = 5))
+# als_model4 <- Recommender(getData(anime_eval_cross_min,"train"), method = "ALS", param =list(n_factors=10, n_iterations = 5))
+# save(als_model,als_model2,als_model3,als_model4, file = "als_models.rda")
+
+# Loading model objects to save time
+load("als_models.rda")
+```
+
+## Singular Value Decomposition Model
+
+```{r}
+# svd_model <- Recommender(getData(anime_eval_split_min,"train"), method = "SVD")
+# svd_model2 <- Recommender(getData(anime_eval_split_allbut5,"train"), method = "SVD")
+# svd_model3 <- Recommender(getData(anime_eval_cross_allbut5,"train"), method = "SVD")
+# svd_model4 <- Recommender(getData(anime_eval_cross_min,"train"), method = "SVD")
+# save(svd_model,svd_model2,svd_model3,svd_model4, file = "svd_models.rda")
+
+# Loading model objects to save time
+load("svd_models.rda")
+```
+
+## Hybrid Model
+
+```{r}
+# hybrid_model <- HybridRecommender(
+#   Recommender(data = getData(anime_eval_split_min, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+#   Recommender(data = getData(anime_eval_split_min, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
+#   Recommender(data = getData(anime_eval_split_min, "train"), method = "SVD"),
+#   Recommender(data = getData(anime_eval_split_min, "train"), method = "POPULAR"),
+#   weights = c(0.4, 0.2, 0.2, 0.2))
+# hybrid_model2 <- HybridRecommender(
+#   Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+#   Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
+#   Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "SVD"),
+#   Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "POPULAR"),
+#   weights = c(0.4, 0.2, 0.2, 0.2))
+# hybrid_model3 <- HybridRecommender(
+#   Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+#   Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
+#   Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "SVD"),
+#   Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "POPULAR"),
+#   weights = c(0.4, 0.2, 0.2, 0.2))
+# hybrid_model4 <- HybridRecommender(
+#   Recommender(data = getData(anime_eval_cross_min, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+#   Recommender(data = getData(anime_eval_cross_min, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
+#   Recommender(data = getData(anime_eval_cross_min, "train"), method = "SVD"),
+#   Recommender(data = getData(anime_eval_cross_min, "train"), method = "POPULAR"),
+#   weights = c(0.4, 0.2, 0.2, 0.2))
+# save(hybrid_model,hybrid_model2,hybrid_model3,hybrid_model4, file = "hybrid_models.rda")
+
+load("hybrid_models.rda")
+```
+
+
+# Model Evaluation
+
+## Error
+
+We computed errors for ratings generated by the models using three different measurements: RMSE, MSE, and MAE.
+
+RMSE - root mean square error, which penalizes larger errors stronger than AME
+MAE - mean average error, which is the mean error of all predicted ratings vs actual ratings
+MSE - similar to MAE, but it uses the squared value of the differences
+
+### Compute predicted ratings for the known part of the test data
+
+```{r}
+# ibcf_predict <- predict(ibcf_model, getData(anime_eval_split_min,"known"), type="ratings")
+# ibcf_predict2 <- predict(ibcf_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+# ibcf_predict3 <- predict(ibcf_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+# ibcf_predict4 <- predict(ibcf_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+# 
+# ubcf_predict <- predict(ubcf_model, getData(anime_eval_split_min,"known"), type="ratings")
+# ubcf_predict2 <- predict(ubcf_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+# ubcf_predict3 <- predict(ubcf_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+# ubcf_predict4 <- predict(ubcf_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+# 
+# als_predict <- predict(als_model, getData(anime_eval_split_min,"known"), type="ratings")
+# als_predict2 <- predict(als_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+# als_predict3 <- predict(als_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+# als_predict4 <- predict(als_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+# 
+# svd_predict <- predict(svd_model, getData(anime_eval_split_min,"known"), type="ratings")
+# svd_predict2 <- predict(svd_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+# svd_predict3 <- predict(svd_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+# svd_predict4 <- predict(svd_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+# 
+# hybrid_predict <- predict(hybrid_model, getData(anime_eval_split_min,"known"), type="ratings")
+# hybrid_predict2 <- predict(hybrid_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+# hybrid_predict3 <- predict(hybrid_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+# hybrid_predict4 <- predict(hybrid_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+# 
+# save(ibcf_predict, ibcf_predict2, ibcf_predict3, ibcf_predict4, ubcf_predict, ubcf_predict2, ubcf_predict3, ubcf_predict4, als_predict, als_predict2, als_predict3, als_predict4, svd_predict, svd_predict2, svd_predict3, svd_predict4, hybrid_predict, hybrid_predict2, hybrid_predict3, hybrid_predict4, file = "prediction_models.rda")
+
+load("prediction_models.rda")
+```
+
+
+### Calculating the error between the prediction and the unknown part of the data
+
+```{r}
+error <- rbind(
+ibcf = calcPredictionAccuracy(ibcf_predict, getData(anime_eval_split_min, "unknown")),
+ibcf2 = calcPredictionAccuracy(ibcf_predict2, getData(anime_eval_split_allbut5, "unknown")),
+ibcf3 = calcPredictionAccuracy(ibcf_predict3, getData(anime_eval_cross_allbut5, "unknown")),
+ibcf4 = calcPredictionAccuracy(ibcf_predict3, getData(anime_eval_cross_min, "unknown")))
+
+error2 <- rbind(
+ubcf = calcPredictionAccuracy(ubcf_predict, getData(anime_eval_split_min, "unknown")),
+ubcf2 = calcPredictionAccuracy(ubcf_predict2, getData(anime_eval_split_allbut5, "unknown")),
+ubcf3 = calcPredictionAccuracy(ubcf_predict3, getData(anime_eval_cross_allbut5, "unknown")),
+ubcf4 = calcPredictionAccuracy(ubcf_predict4, getData(anime_eval_cross_min, "unknown")))
+
+error3 <- rbind(
+als = calcPredictionAccuracy(als_predict, getData(anime_eval_split_min, "unknown")),
+als2 = calcPredictionAccuracy(als_predict2, getData(anime_eval_split_allbut5, "unknown")),
+als3 = calcPredictionAccuracy(als_predict3, getData(anime_eval_cross_allbut5, "unknown")),
+als4= calcPredictionAccuracy(als_predict4, getData(anime_eval_cross_min, "unknown")))
+
+error4 <- rbind(
+svd = calcPredictionAccuracy(svd_predict, getData(anime_eval_split_min, "unknown")),
+svd2 = calcPredictionAccuracy(svd_predict2, getData(anime_eval_split_allbut5, "unknown")),
+svd3 = calcPredictionAccuracy(svd_predict3, getData(anime_eval_cross_allbut5, "unknown")),
+svd4= calcPredictionAccuracy(svd_predict4, getData(anime_eval_cross_min, "unknown")))
+
+error5 <- rbind(
+h = calcPredictionAccuracy(hybrid_predict, getData(anime_eval_split_min, "unknown")),
+h2 = calcPredictionAccuracy(hybrid_predict2, getData(anime_eval_split_allbut5, "unknown")),
+h3 = calcPredictionAccuracy(hybrid_predict3, getData(anime_eval_cross_allbut5, "unknown")),
+h4 = calcPredictionAccuracy(hybrid_predict4, getData(anime_eval_cross_min, "unknown")))
+
+error_total <- rbind(as.data.frame(error),as.data.frame(error2),as.data.frame(error3),as.data.frame(error4),as.data.frame(error5))
+error_total
+```
+
+### Interpretation of Errors
+
+```{r}
+error_total[ "algo_type" ] <- rownames(error_total)
+error_total_melted <- melt(error_total, id.vars = "algo_type")
+
+error_total_split_min <- error_total[c("ibcf","ubcf","als","svd","h"),]
+error_total_split_allbut5 <- error_total[c("ibcf2","ubcf2","als2","svd2","h2"),]
+error_total_cross_allbut5 <- error_total[c("ibcf3","ubcf3","als3","svd3","h3"),]
+error_total_cross_min <- error_total[c("ibcf4","ubcf4","als4","svd4","h4"),]
+
+error_total_split_min_melted <- melt(error_total_split_min, id.vars = "algo_type")
+error_total_split_allbut5_melted <- melt(error_total_split_allbut5, id.vars = "algo_type")
+error_total_cross_allbut5_melted <- melt(error_total_cross_allbut5, id.vars = "algo_type")
+error_total_cross_min_melted <- melt(error_total_cross_min, id.vars = "algo_type")
+
+ggplot(data = error_total_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
+  geom_bar(stat = 'identity', position = 'dodge') +
+  labs(x="Algorithm Type") +
+  labs(y="Total Error Value") +
+  labs(col="Error Type") +
+  ggtitle("Error Values for All Different Algorithms and Schemes")
+
+ggplot(data = error_total_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
+  geom_bar(stat = 'identity') +
+  labs(x="Algorithm Type") +
+  labs(y="Total Error Value") +
+  labs(col="Error Type") +
+  ggtitle("Error Values for All Different Algorithms and Schemes")
 ```
 
 ```{r}
-ibcf_predict <- predict(ibcf_model, getData(anime_eval, "known"), type="ratings")
-ubcf_predict <- predict(ubcf_model, getData(anime_eval, "known"), type="ratings")
+ggplot(data = error_total_split_min_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
+  geom_bar(stat = 'identity') +
+  labs(x="Algorithm Type") +
+  labs(y="Error Value") +
+  labs(col="Error Type") +
+  ylim(0,10)+
+  ggtitle("Error Values for All Different Algorithms, Using Split + Minimum Given Values")
 
-error <- rbind(IBCF = calcPredictionAccuracy(ibcf_predict, getData(anime_eval, "unknown")),
-               UBCF = calcPredictionAccuracy(ubcf_predict, getData(anime_eval, "unknown")))
-error
+ggplot(data = error_total_split_allbut5_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
+  geom_bar(stat = 'identity') +
+  labs(x="Algorithm Type") +
+  labs(y="Error Value") +
+  labs(col="Error Type") +
+  ylim(0,10)+
+  ggtitle("Error Values for All Different Algorithms, Using Split + All-But-5 Given Values")
 
-#image(getModel(ibcf_model)$sim,
-      #main = "Heatmap of the first rows and columns")
-#image(getModel(ubcf_model)$sim,
-#     main = "Heatmap of the first rows and columns")
+ggplot(data = error_total_cross_allbut5_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
+  geom_bar(stat = 'identity') +
+  labs(x="Algorithm Type") +
+  labs(y="Error Value") +
+  labs(col="Error Type") +
+  ylim(0,10)+
+  ggtitle("Error Values for All Different Algorithms, Using Cross + All-But-5 Given Values")
+
+ggplot(data = error_total_cross_min_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
+  geom_bar(stat = 'identity') +
+  labs(x="Algorithm Type") +
+  labs(y="Error Value") +
+  labs(col="Error Type") +
+  ylim(0,10)+
+  ggtitle("Error Values for All Different Algorithms, Using Cross + Minimum Given Values")
 ```
 
-## What all can we do with the models?
+In general, using all-but-5 as the "given" parameter within Recommenderlab generates results with lower error values. It is more computationally expensive, but since we are already sampling our data, it doesn't add much to computation time. Using all-but-5 makes it so that the models are able to use more data for training instead of being limited to the minimum value of 89 (in our case), the models can make use of users who have ratings much greater than 89.
+
+We calculated the errors using both the 80/20 Split Method and using 4-fold Cross-Fold Validation. We were happy to see that the errors from both methods weren't significantly different from each other, but we used both just to make sure our errors were double checked. 4-fold Cross-Validation is more computationally expensive, which is probably why it was able to detect a slightly higher level of error.
+
+For the above reasons, we will be using the All-But-5 "Given" parameter for our anime recommender application for all algorithms.
+
+## Accuracy
+
+To compute accuracy for a recommender system, we have to set a rating value that seperates ratings into correct or incorrect ratings. We have chosen the value of "7" since it is the rounded average of the ratings in our data set. An ROC curve plots the true positive rate against the false positive rate, and is linear with a slope of one with a random classifier. The larger the area under the curve, the better the classifier performance.
+
+### ROC Curve
 
 ```{r}
-names(getModel(ubcf_model))
-names(getModel(ibcf_model))
+algorithms <- list(
+  "item-based CF" = list(name="IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+  "user-based CF" = list(name="UBCF", param = list(normalize = "center",method="Cosine",nn=50)),
+  "ALS" = list(name="ALS", param = list(n_iterations = 5)),
+  "SVD" = list(name="SVD"),
+  "Popular"= list(name="POPULAR"),
+  "Random"= list(name="Random")
+  )
+results <- evaluate(anime_eval_split_allbut5, algorithms,type="topNList", n = c(1, 3, 5, 10,15, 20))
+save(results, file="roc_results.rda")
+load("roc_results.rda")
 ```
 
-## Recommendations for Users
-
-RecommenderLab creates predictions using predict() and creates an object of class TopNList.
-
-### UBCF
 
 ```{r}
-ubcf_model_test <- Recommender(ratingmat_sample,method="UBCF")
-recom<-predict(ubcf_model_test, ratingmat_sample[1],n=5)
-#class(recom)
+plot(results, annotate=T, legend="topleft")
+title("ROC Curve")
 
+plot(results, "prec/rec", annotate = T, legend = "topright")
+title("Pecision-Recall")
+```
+
+## Which Models Performed the Best?
+
+IBCF:
+Relatively slow time to build model, but nearly instant predictions. Doesn't need to be recreated for a new user.
+
+UBCF:
+Instant time to build model, slightly slow predictions. Does need to be recreated for a new user.
+
+ALS:
+Instant time to build model, slow predictions. Does need to be recreated for a new user.
+
+SVD:
+Quick time to build model, quick predictions. Does need to be recreated for a new user.
+
+## Example Recommendations for One User
+
+RecommenderLab creates predictions using predict() to create an objects of various classes like a TopNList.
+
+```{r}
 getAnimeNames <- function(df) {
+  # function that takes as input a list of MAL_ID, 
+  # and returns a data frame containing the corresponding English names
   out = as.data.frame(matrix(ncol=1,nrow=5))
   names(out)[1] <- 'Anime Name'
   for(i in 1:nrow(df)) {
-      value <- df[[i,1]]
-      row <- which(anime_df[["MAL_ID"]]==value)
-      out[i,1] <- anime_df[row,5]
+    value <- df[[i,1]]
+    row <- which(anime_df[["MAL_ID"]]==value)
+    out[i,1] <- anime_df[row,5]
   }
   return(out)
 }
-recommend_example_ubcf <- getAnimeNames(as.data.frame(as(recom,"list")))
-recommend_example_ubcf 
-getList(bestN(recom, 3))[[1]]
-getList(recom)
+
+ibcf_recom<-predict(ibcf_model2, ratingmat_sample[1],n=5)
+ubcf_recom<-predict(ubcf_model2, ratingmat_sample[1],n=5)
+als_recom<-predict(als_model2, ratingmat_sample[1],n=5)
+svd_recom<-predict(svd_model2, ratingmat_sample[1],n=5)
+
+getAnimeNames(as.data.frame(as(ibcf_recom,"list")))
+getAnimeNames(as.data.frame(as(ubcf_recom,"list")))
+getAnimeNames(as.data.frame(as(als_recom,"list")))
+getAnimeNames(as.data.frame(as(svd_recom,"list")))
 ```
-
-### IBCF
-
-```{r}
-recom<-predict(ibcf_model, ratingmat[1001],n=5)
-recommend_example_ibcf <- getAnimeNames(as.data.frame(as(recom,"list")))
-recommend_example_ibcf 
-
-getList(recom)
-```
-
-
-```{r}
-recom_list <- as(recom,"list")
-getAnimeNames(as.data.frame(as(recom,"list")))
-getList(recom)
-```
-
-
-```{r}
-#anime_1_id <- which(anime_df_sample[,5]== anime_1)
-  #anime_2_id <- which(anime_df_sample[,5]== anime_2)
-  #anime_3_id <- which(anime_df_sample[,5]== anime_3)
- # anime_4_id <- which(anime_df_sample[,5]== anime_4)
-  #anime_5_id <- which(anime_df_sample[,5]== anime_5)
-  user <- c(9,9,9,9,9)
-  item <- c(16498, 1535, 39587, 47,30276)
-  rating <- c(9,8,9,8,7)
-  user_ratings <- data.frame(user,item, rating)
-  #row_num <- which(movies2[,2] == input)
-  user_ratings$item <- as.character(unlist(user_ratings$item))
-  user_ratings$rating <- as.numeric(unlist(user_ratings$rating))
-  user_ratings<-as.data.frame(user_ratings)
-  ratingmat_sample_df <- as(ratingmat_sample, "data.frame")
-  ratingmat_sample_df$user <- as.numeric(ratingmat_sample_df$user)
-  ratingmat_sample_df$item <- as.character(ratingmat_sample_df$item)
-  ratingmat_sample_df<-ratingmat_sample_df[order(as.numeric(row.names(ratingmat_sample_df))),]
-  user_rating_mat5 <- rbind(user_ratings,ratingmat_sample_df)
-  user_rating_mat5$user <- as.numeric(user_rating_mat5$user)
-  user_rating_mat5$item <- as.character(user_rating_mat5$item)
-  user_rating_mat6<- as(user_rating_mat5, "realRatingMatrix")
-```
-
-
-```{r}
-  user_rating_mat <- dcast(ratingmat_sample_df, user~item, value.var = "rating", na.rm=FALSE)
-  user_rating_mat2 <- user_rating_mat[,-1]
-  tmp = matrix(NA,1,3140)
-  colnames(tmp) <- colnames(user_rating_mat2)
-  tmp[1,"16498"] <- 7
-  tmp[1,"1535"] <- 7
-  tmp[1,"39587"] <- 7
-  tmp[1,"47"] <- 7
-  tmp[1,"30276"] <- 7
-  user_rating_mat3 <- rbind(tmp,user_rating_mat2)
-  user_rating_mat3 <- proxy::as.matrix(user_rating_mat3)
-```
-
-
-```{r}
-#Convert rating matrix into a sparse matrix
-  # user_rating_mat3<- as(user_rating_mat3, "realRatingMatrix")
-  # temp1 <- dcast(ratingmat_sample_df, user~item, value.var = "rating", na.rm=FALSE)
-  # tmp = matrix(NA,1,3140)
-  # temp2 <- temp1[,-1]
-  # colnames(tmp)=colnames(temp2)
-  # tmp[1, user_ratings$item] = user_ratings$rating
-  # user_rating_mat <- rbind(tmp,temp2)
-  # user_rating_mat <- as.matrix(user_rating_mat)
-  # user_rating_mat <- as(user_rating_mat,"realRatingMatrix")
-  
-recommender_model <- Recommender(user_rating_mat6, method = "UBCF")
-recom <- predict(recommender_model, user_rating_mat6[1], n=5)
-recom_list <- as(recom, "list")
-getAnimeNames(as.data.frame(as(recom,"list")))
-```
-
-
-```{r}
-as(user_rating_mat3,data.frame)
-user_rating_mat3[1]
-```
-
