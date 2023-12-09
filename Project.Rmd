@@ -81,39 +81,41 @@ ggplot(aes(x=Type)) +
 geom_bar(stat = "count", fill = "#fc5e5e" ) +
 ggtitle("Anime Type Distribution")
 
-load("pre_sampled_df.rda")
-rating_og_counts[1:10,] %>%
-  ggplot(aes(x = reorder(Anime_Name, -Num_Ratings),y=Num_Ratings,fill=Num_Ratings)) +
-  scale_fill_continuous(low="blue", high="red") +
-  scale_x_discrete(labels = scales::wrap_format(8))+
-  geom_bar(stat='identity') +
-  xlab("Anime Name" )+
-  ylab("Number of Ratings" )+
-  ggtitle("Most Rated Anime Pre-Sampled") + 
-  theme(legend.position="none")
+# This section has been commented out because pre_sampled_df.rda is too large to include in repo
 
-ggplot(data=ratingmat_og_df,aes(x=rating,y=..count..,fill=..count..)) +
-  geom_bar() +
-  scale_fill_continuous(low="blue", high="red") +
-  scale_x_continuous(limits = c(0,11),breaks = seq(-1,10,1)) +
-  ggtitle("Distribution of Pre-Sampled Ratings") + 
-  theme(legend.position="none")
-
-ggplot(data=ratingmat_df_normalized,aes(x=`getRatings(normalize(ratingmat, method = "Z-score"))`,y=..count..,fill=..count..)) +
-  geom_histogram(binwidth = 0.05) +
-  scale_fill_continuous(low="blue", high="red") +
-  xlim(-5,5)+
-  xlab("Rating (Normalized)" )+
-  ggtitle("Distribution of Pre-Sampled Ratings, Normalized") + 
-  theme(legend.position="none")
-
-ggplot(data=ratingmat_og_rowcounts,aes(x=`rowCounts(ratingmat)`,y=..count..,fill=..count..)) +
-  geom_histogram(binwidth = 10) +
-  scale_fill_continuous(low="blue", high="red") +
-  scale_x_continuous(limits = c(100,1500),breaks = seq(0,1500,100)) +
-  xlab("Ratings per User") +
-  ggtitle("Number of Ratings per User, Pre-Sampled") + 
-  theme(legend.position="none")
+# load("pre_sampled_df.rda")
+# rating_og_counts[1:10,] %>%
+#   ggplot(aes(x = reorder(Anime_Name, -Num_Ratings),y=Num_Ratings,fill=Num_Ratings)) +
+#   scale_fill_continuous(low="blue", high="red") +
+#   scale_x_discrete(labels = scales::wrap_format(8))+
+#   geom_bar(stat='identity') +
+#   xlab("Anime Name" )+
+#   ylab("Number of Ratings" )+
+#   ggtitle("Most Rated Anime Pre-Sampled") + 
+#   theme(legend.position="none")
+# 
+# ggplot(data=ratingmat_og_df,aes(x=rating,y=..count..,fill=..count..)) +
+#   geom_bar() +
+#   scale_fill_continuous(low="blue", high="red") +
+#   scale_x_continuous(limits = c(0,11),breaks = seq(-1,10,1)) +
+#   ggtitle("Distribution of Pre-Sampled Ratings") + 
+#   theme(legend.position="none")
+# 
+# ggplot(data=ratingmat_df_normalized,aes(x=`getRatings(normalize(ratingmat, method = "Z-score"))`,y=..count..,fill=..count..)) +
+#   geom_histogram(binwidth = 0.05) +
+#   scale_fill_continuous(low="blue", high="red") +
+#   xlim(-5,5)+
+#   xlab("Rating (Normalized)" )+
+#   ggtitle("Distribution of Pre-Sampled Ratings, Normalized") + 
+#   theme(legend.position="none")
+# 
+# ggplot(data=ratingmat_og_rowcounts,aes(x=`rowCounts(ratingmat)`,y=..count..,fill=..count..)) +
+#   geom_histogram(binwidth = 10) +
+#   scale_fill_continuous(low="blue", high="red") +
+#   scale_x_continuous(limits = c(100,1500),breaks = seq(0,1500,100)) +
+#   xlab("Ratings per User") +
+#   ggtitle("Number of Ratings per User, Pre-Sampled") + 
+#   theme(legend.position="none")
 ```
 
 ## Sampling
@@ -418,34 +420,34 @@ load("svd_models.rda")
 ## Hybrid Model
 
 ```{r}
-# hybrid_model <- HybridRecommender(
-#   Recommender(data = getData(anime_eval_split_min, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
-#   Recommender(data = getData(anime_eval_split_min, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
-#   Recommender(data = getData(anime_eval_split_min, "train"), method = "SVD"),
-#   Recommender(data = getData(anime_eval_split_min, "train"), method = "POPULAR"),
-#   weights = c(0.4, 0.2, 0.2, 0.2))
-# hybrid_model2 <- HybridRecommender(
-#   Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
-#   Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
-#   Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "SVD"),
-#   Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "POPULAR"),
-#   weights = c(0.4, 0.2, 0.2, 0.2))
-# hybrid_model3 <- HybridRecommender(
-#   Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
-#   Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
-#   Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "SVD"),
-#   Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "POPULAR"),
-#   weights = c(0.4, 0.2, 0.2, 0.2))
-# hybrid_model4 <- HybridRecommender(
-#   Recommender(data = getData(anime_eval_cross_min, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
-#   Recommender(data = getData(anime_eval_cross_min, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
-#   Recommender(data = getData(anime_eval_cross_min, "train"), method = "SVD"),
-#   Recommender(data = getData(anime_eval_cross_min, "train"), method = "POPULAR"),
-#   weights = c(0.4, 0.2, 0.2, 0.2))
-# save(hybrid_model,hybrid_model2,hybrid_model3,hybrid_model4, file = "hybrid_models.rda")
+hybrid_model <- HybridRecommender(
+  Recommender(data = getData(anime_eval_split_min, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+  Recommender(data = getData(anime_eval_split_min, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
+  Recommender(data = getData(anime_eval_split_min, "train"), method = "SVD"),
+  Recommender(data = getData(anime_eval_split_min, "train"), method = "POPULAR"),
+  weights = c(0.4, 0.2, 0.2, 0.2))
+hybrid_model2 <- HybridRecommender(
+  Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+  Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
+  Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "SVD"),
+  Recommender(data = getData(anime_eval_split_allbut5, "train"), method = "POPULAR"),
+  weights = c(0.4, 0.2, 0.2, 0.2))
+hybrid_model3 <- HybridRecommender(
+  Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+  Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
+  Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "SVD"),
+  Recommender(data = getData(anime_eval_cross_allbut5, "train"), method = "POPULAR"),
+  weights = c(0.4, 0.2, 0.2, 0.2))
+hybrid_model4 <- HybridRecommender(
+  Recommender(data = getData(anime_eval_cross_min, "train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+  Recommender(data = getData(anime_eval_cross_min, "train"), method = "UBCF", param = list(normalize = "center", method="Cosine", nn=50)),
+  Recommender(data = getData(anime_eval_cross_min, "train"), method = "SVD"),
+  Recommender(data = getData(anime_eval_cross_min, "train"), method = "POPULAR"),
+  weights = c(0.4, 0.2, 0.2, 0.2))
+save(hybrid_model,hybrid_model2,hybrid_model3,hybrid_model4, file = "hybrid_models.rda")
 
 # Loading model objects to save time
-load("hybrid_models.rda")
+# load("hybrid_models.rda")
 ```
 
 
@@ -462,35 +464,35 @@ MSE - similar to MAE, but it uses the squared value of the differences
 ### Compute predicted ratings for the known part of the test data
 
 ```{r}
-# ibcf_predict <- predict(ibcf_model, getData(anime_eval_split_min,"known"), type="ratings")
-# ibcf_predict2 <- predict(ibcf_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
-# ibcf_predict3 <- predict(ibcf_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
-# ibcf_predict4 <- predict(ibcf_model4, getData(anime_eval_cross_min,"known"), type="ratings")
-# 
-# ubcf_predict <- predict(ubcf_model, getData(anime_eval_split_min,"known"), type="ratings")
-# ubcf_predict2 <- predict(ubcf_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
-# ubcf_predict3 <- predict(ubcf_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
-# ubcf_predict4 <- predict(ubcf_model4, getData(anime_eval_cross_min,"known"), type="ratings")
-# 
-# als_predict <- predict(als_model, getData(anime_eval_split_min,"known"), type="ratings")
-# als_predict2 <- predict(als_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
-# als_predict3 <- predict(als_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
-# als_predict4 <- predict(als_model4, getData(anime_eval_cross_min,"known"), type="ratings")
-# 
-# svd_predict <- predict(svd_model, getData(anime_eval_split_min,"known"), type="ratings")
-# svd_predict2 <- predict(svd_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
-# svd_predict3 <- predict(svd_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
-# svd_predict4 <- predict(svd_model4, getData(anime_eval_cross_min,"known"), type="ratings")
-# 
-# hybrid_predict <- predict(hybrid_model, getData(anime_eval_split_min,"known"), type="ratings")
-# hybrid_predict2 <- predict(hybrid_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
-# hybrid_predict3 <- predict(hybrid_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
-# hybrid_predict4 <- predict(hybrid_model4, getData(anime_eval_cross_min,"known"), type="ratings")
-# 
-# save(ibcf_predict, ibcf_predict2, ibcf_predict3, ibcf_predict4, ubcf_predict, ubcf_predict2, ubcf_predict3, ubcf_predict4, als_predict, als_predict2, als_predict3, als_predict4, svd_predict, svd_predict2, svd_predict3, svd_predict4, hybrid_predict, hybrid_predict2, hybrid_predict3, hybrid_predict4, file = "prediction_models.rda")
+ibcf_predict <- predict(ibcf_model, getData(anime_eval_split_min,"known"), type="ratings")
+ibcf_predict2 <- predict(ibcf_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+ibcf_predict3 <- predict(ibcf_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+ibcf_predict4 <- predict(ibcf_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+
+ubcf_predict <- predict(ubcf_model, getData(anime_eval_split_min,"known"), type="ratings")
+ubcf_predict2 <- predict(ubcf_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+ubcf_predict3 <- predict(ubcf_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+ubcf_predict4 <- predict(ubcf_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+
+als_predict <- predict(als_model, getData(anime_eval_split_min,"known"), type="ratings")
+als_predict2 <- predict(als_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+als_predict3 <- predict(als_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+als_predict4 <- predict(als_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+
+svd_predict <- predict(svd_model, getData(anime_eval_split_min,"known"), type="ratings")
+svd_predict2 <- predict(svd_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+svd_predict3 <- predict(svd_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+svd_predict4 <- predict(svd_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+
+hybrid_predict <- predict(hybrid_model, getData(anime_eval_split_min,"known"), type="ratings")
+hybrid_predict2 <- predict(hybrid_model2, getData(anime_eval_split_allbut5,"known"), type="ratings")
+hybrid_predict3 <- predict(hybrid_model3, getData(anime_eval_cross_allbut5,"known"), type="ratings")
+hybrid_predict4 <- predict(hybrid_model4, getData(anime_eval_cross_min,"known"), type="ratings")
+
+save(ibcf_predict, ibcf_predict2, ibcf_predict3, ibcf_predict4, ubcf_predict, ubcf_predict2, ubcf_predict3, ubcf_predict4, als_predict, als_predict2, als_predict3, als_predict4, svd_predict, svd_predict2, svd_predict3, svd_predict4, hybrid_predict, hybrid_predict2, hybrid_predict3, hybrid_predict4, file = "prediction_models.rda")
 
 # Loading prediction objects to save time
-load("prediction_models.rda")
+# load("prediction_models.rda")
 ```
 
 
