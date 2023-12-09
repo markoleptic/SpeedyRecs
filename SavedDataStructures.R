@@ -7,22 +7,22 @@ anime_eval_split_min <- evaluationScheme(data = ratingmat_sample,
                                          method = "split",
                                          train = 0.8,
                                          given = min(rowCounts(ratingmat_sample)),
-                                         goodRating = 7)
+                                         goodRating = 5)
 anime_eval_split_allbut5 <- evaluationScheme(data = ratingmat_sample,
                                              method = "split",
                                              train = 0.8,
                                              given = -5, 
-                                             goodRating = 7) 
+                                             goodRating = 5) 
 anime_eval_cross_allbut5 <- evaluationScheme(data = ratingmat_sample,
                                              method = "cross",
                                              k=4,
                                              given = -5, 
-                                             goodRating = 7)
+                                             goodRating = 5)
 anime_eval_cross_min <- evaluationScheme(data = ratingmat_sample,
                                          method = "cross", 
                                          k=4,
                                          given = min(rowCounts(ratingmat_sample)),
-                                         goodRating = 7)
+                                         goodRating = 5)
 save(anime_eval_split_min, anime_eval_split_allbut5,anime_eval_cross_allbut5, anime_eval_cross_min,file="anime_eval_schemes.rda")
 load("anime_eval_schemes.rda")
 

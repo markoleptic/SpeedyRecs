@@ -1,79 +1,130 @@
 library(shiny)
 library(shinyjs)
 library(proxy)
-library(recommenderlab)
-library(reshape2)
+library(rsconnect)
 source("userrecommender.R")
-load("anime_eval_schemes.rda")
-load("ibcf_models.rda")
-load("ubcf_models.rda")
-load("als_models.rda")
-load("svd_models.rda")
-load("prediction_models.rda")
 
 #UI
 ui <- ((fluidPage(  
   titlePanel("Anime Recommendation System"),
   sidebarLayout(
-    sidebarPanel(
-      h3("Choose 1-5 Anime that you would rate higher than an 8/10"),
+    sidebarPanel(width=5, position = c("left"),
+      h3("Rate any 5 unique Anime from the Dropdown Boxes"),
+      div(style="display:inline-block",
       selectizeInput(
         inputId = "anime_1", 
         label = "#1", 
         multiple = FALSE,
         choices = NULL,
         selected = NULL,
-        options = list(
-          placeholder= "Type to search"
-        )),
+        width = '200px',
+        options = list(placeholder= "Search"))),
+      div(style="display:inline-block",
       selectizeInput(
-        inputId = "anime_2", 
-        label = "#2", 
+        inputId = "anime_1_rating", 
+        label = NULL, 
         multiple = FALSE,
         choices = NULL,
         selected = NULL,
+        width = '100px',
         options = list(
-          placeholder= "Type to search"
-        )),
-      selectizeInput(
-        inputId = "anime_3", 
-        label = "#3", 
-        multiple = FALSE,
-        choices = NULL,
-        selected = NULL,
-        options = list(
-          placeholder= "Type to search"
-        )),
-      selectizeInput(
-        inputId = "anime_4", 
-        label = "#4", 
-        multiple = FALSE,
-        choices = NULL,
-        selected = NULL,
-        options = list(
-          placeholder= "Type to search"
-        )),
-      selectizeInput(
-        inputId = "anime_5", 
-        label = "#5", 
-        multiple = FALSE,
-        choices = NULL,
-        selected = NULL,
-        options = list(
-          placeholder= "Type to search"
-        )),
-      actionButton("returnIBCF", "Get Recommendations using IBCF"),
-      actionButton("returnUBCF", "Get Recommendations using UBCF"),
-      actionButton("returnALS", "Get Recommendations using ALS"),
-      actionButton("returnSVD", "Get Recommendations using SVD"),
-      actionButton("returnHybrid", "Get Recommendations using Hybrid"),
-      hr()
+          placeholder= "Rating"
+        ))),
+      hr(),
+      div(style="display:inline-block",
+          selectizeInput(
+            inputId = "anime_2", 
+            label = "#2", 
+            multiple = FALSE,
+            choices = NULL,
+            selected = NULL,
+            width = '200px',
+            options = list(placeholder= "Search"))),
+      div(style="display:inline-block",
+          selectizeInput(
+            inputId = "anime_2_rating", 
+            label = NULL, 
+            multiple = FALSE,
+            choices = NULL,
+            selected = NULL,
+            width = '100px',
+            options = list(
+              placeholder= "Rating"
+            ))),
+      hr(),
+      div(style="display:inline-block",
+          selectizeInput(
+            inputId = "anime_3", 
+            label = "#3", 
+            multiple = FALSE,
+            choices = NULL,
+            selected = NULL,
+            width = '200px',
+            options = list(placeholder= "Search"))),
+      div(style="display:inline-block",
+          selectizeInput(
+            inputId = "anime_3_rating", 
+            label = NULL, 
+            multiple = FALSE,
+            choices = NULL,
+            selected = NULL,
+            width = '100px',
+            options = list(
+              placeholder= "Rating"
+            ))),
+      hr(),
+      div(style="display:inline-block",
+          selectizeInput(
+            inputId = "anime_4", 
+            label = "#4", 
+            multiple = FALSE,
+            choices = NULL,
+            selected = NULL,
+            width = '200px',
+            options = list(placeholder= "Search"))),
+      div(style="display:inline-block",
+          selectizeInput(
+            inputId = "anime_4_rating", 
+            label = NULL, 
+            multiple = FALSE,
+            choices = NULL,
+            selected = NULL,
+            width = '100px',
+            options = list(
+              placeholder= "Rating"
+            ))),
+      hr(),
+      div(style="display:inline-block",
+          selectizeInput(
+            inputId = "anime_5", 
+            label = "#5", 
+            multiple = FALSE,
+            choices = NULL,
+            selected = NULL,
+            width = '200px',
+            options = list(placeholder= "Search"))),
+      div(style="display:inline-block",
+          selectizeInput(
+            inputId = "anime_5_rating", 
+            label = NULL, 
+            multiple = FALSE,
+            choices = NULL,
+            selected = NULL,
+            width = '100px',
+            options = list(
+              placeholder= "Rating"
+            ))),
+      hr(),
+      h3("Click on an Algorithm Below to Get Ratings"),
+      actionButton("returnIBCF", "IBCF"),
+      actionButton("returnUBCF", "UBCF"),
+      actionButton("returnALS", "ALS"),
+      actionButton("returnSVD", "SVD"),
+      actionButton("returnHybrid", "Hybrid"),
     ),
-    mainPanel(
-      column(4,
+    mainPanel(width=7, position = c("right"),
              h3(textOutput("rec_text")),
              tableOutput("table"))
-    )
   )
 )))
 
@@ -88,8 +139,20 @@ server <- (function(input, output, session) {
     server = TRUE)
   updateSelectizeInput(
     session, 
+    "anime_1_rating", 
+    choices = sort(rating_select$Rating),
+    selected = character(0), 
+    server = TRUE)
+  updateSelectizeInput(
+    session, 
     "anime_2", 
     choices = sort(anime_df_sample$English.name),
+    selected = character(0), 
+    server = TRUE)
+  updateSelectizeInput(
+    session, 
+    "anime_2_rating", 
+    choices = sort(rating_select$Rating),
     selected = character(0), 
     server = TRUE)
   updateSelectizeInput(
@@ -100,8 +163,20 @@ server <- (function(input, output, session) {
     server = TRUE)
   updateSelectizeInput(
     session, 
+    "anime_3_rating", 
+    choices = sort(rating_select$Rating),
+    selected = character(0), 
+    server = TRUE)
+  updateSelectizeInput(
+    session, 
     "anime_4", 
     choices = sort(anime_df_sample$English.name),
+    selected = character(0), 
+    server = TRUE)
+  updateSelectizeInput(
+    session, 
+    "anime_4_rating", 
+    choices = sort(rating_select$Rating),
     selected = character(0), 
     server = TRUE)
   updateSelectizeInput(
@@ -110,39 +185,50 @@ server <- (function(input, output, session) {
     choices = sort(anime_df_sample$English.name),
     selected = character(0), 
     server = TRUE)
+  updateSelectizeInput(
+    session, 
+    "anime_5_rating", 
+    choices = sort(rating_select$Rating),
+    selected = character(0), 
+    server = TRUE)
   
   observeEvent(input$returnIBCF, {
     output$rec_text <- renderText("Recommendations Using IBCF:")
     output$table <- renderTable({
-      get_ibcf_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5)
+      get_ibcf_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5, 
+                    input$anime_1_rating, input$anime_2_rating, input$anime_3_rating, input$anime_4_rating, input$anime_5_rating)
     })
   })
   
   observeEvent(input$returnUBCF, {
     output$rec_text <- renderText("Recommendations Using UBCF:")
     output$table <- renderTable({
-      get_ubcf_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5)
+      get_ubcf_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5, 
+                    input$anime_1_rating, input$anime_2_rating, input$anime_3_rating, input$anime_4_rating, input$anime_5_rating)
     })
   })
 
   observeEvent(input$returnALS, {
     output$rec_text <- renderText("Recommendations Using ALS:")
     output$table <- renderTable({
-      get_als_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5)
+      get_als_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5, 
+                   input$anime_1_rating, input$anime_2_rating, input$anime_3_rating, input$anime_4_rating, input$anime_5_rating)
     })
   })
   
   observeEvent(input$returnSVD, {
     output$rec_text <- renderText("Recommendations Using SVD:")
     output$table <- renderTable({
-      get_svd_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5)
+      get_svd_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5, 
+                   input$anime_1_rating, input$anime_2_rating, input$anime_3_rating, input$anime_4_rating, input$anime_5_rating)
     })
   })
   
   observeEvent(input$returnHybrid, {
     output$rec_text <- renderText("Recommendations Using Hybrid:")
     output$table <- renderTable({
-      get_hybrid_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5)
+      get_hybrid_recs(input$anime_1, input$anime_2,input$anime_3,input$anime_4,input$anime_5, 
+                      input$anime_1_rating, input$anime_2_rating, input$anime_3_rating, input$anime_4_rating, input$anime_5_rating)
     })
   })
   

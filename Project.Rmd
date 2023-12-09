@@ -32,8 +32,6 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,row.print=10)
-
-#source("userrecommender.R")
 library(leaflet)
 library(dplyr)
 library(plyr)
@@ -68,20 +66,54 @@ anime_df <- anime_df %>% filter(!(grepl("Hentai",Genres)|Score=="Unknown"|Englis
 # Updating ratings dataframe with anime datframe
 ratings_df <- ratings_df[(ratings_df$anime_id %in% anime_df$MAL_ID),]
 
+# Remove unused columns
 anime_df <- subset(anime_df, select=-c(Japanese.name,Producers,Licensors,Favorites,Watching,On.Hold,Plan.to.Watch,Score.10,Score.9,Score.8,Score.7,Score.6,Score.5,Score.4,Score.3,Score.2,Score.1))
 ```
 
 ## Previewing the Data
 
-```{r}
+```{r, warning=FALSE}
 glimpse(head(anime_df))
-
 glimpse(head(ratings_df))
 
 anime_df %>%
 ggplot(aes(x=Type)) +
 geom_bar(stat = "count", fill = "#fc5e5e" ) +
 ggtitle("Anime Type Distribution")
+
+load("pre_sampled_df.rda")
+rating_og_counts[1:10,] %>%
+  ggplot(aes(x = reorder(Anime_Name, -Num_Ratings),y=Num_Ratings,fill=Num_Ratings)) +
+  scale_fill_continuous(low="blue", high="red") +
+  scale_x_discrete(labels = scales::wrap_format(8))+
+  geom_bar(stat='identity') +
+  xlab("Anime Name" )+
+  ylab("Number of Ratings" )+
+  ggtitle("Most Rated Anime Pre-Sampled") + 
+  theme(legend.position="none")
+
+ggplot(data=ratingmat_og_df,aes(x=rating,y=..count..,fill=..count..)) +
+  geom_bar() +
+  scale_fill_continuous(low="blue", high="red") +
+  scale_x_continuous(limits = c(0,11),breaks = seq(-1,10,1)) +
+  ggtitle("Distribution of Pre-Sampled Ratings") + 
+  theme(legend.position="none")
+
+ggplot(data=ratingmat_df_normalized,aes(x=`getRatings(normalize(ratingmat, method = "Z-score"))`,y=..count..,fill=..count..)) +
+  geom_histogram(binwidth = 0.05) +
+  scale_fill_continuous(low="blue", high="red") +
+  xlim(-5,5)+
+  xlab("Rating (Normalized)" )+
+  ggtitle("Distribution of Pre-Sampled Ratings, Normalized") + 
+  theme(legend.position="none")
+
+ggplot(data=ratingmat_og_rowcounts,aes(x=`rowCounts(ratingmat)`,y=..count..,fill=..count..)) +
+  geom_histogram(binwidth = 10) +
+  scale_fill_continuous(low="blue", high="red") +
+  scale_x_continuous(limits = c(100,1500),breaks = seq(0,1500,100)) +
+  xlab("Ratings per User") +
+  ggtitle("Number of Ratings per User, Pre-Sampled") + 
+  theme(legend.position="none")
 ```
 
 ## Sampling
@@ -115,6 +147,7 @@ ratingmat_sample <- sample(ratingmat, 1000)
 ratingmat_sample
 object.size(ratingmat_sample)
 
+# Removing anime that aren't part of the sample
 ratingmat_sample_filtered <- as(ratingmat_sample,"data.frame")
 anime_id_sample_filtered <- ratingmat_sample_filtered[,2]
 anime_id_sample_filtered <- anime_id_sample_filtered[!duplicated(anime_id_sample_filtered)]
@@ -124,7 +157,7 @@ anime_id_sample_filtered$item <- as.character(unlist(anime_id_sample_filtered$it
 anime_df_sample <- anime_df[(anime_df$MAL_ID %in% anime_id_sample_filtered$item),]
 ```
 
-## Preview Rating Distribution
+## Preview Sampled Rating Distribution
 
 ```{r, warning=FALSE}
 ratingmat_sample_df <- as(ratingmat_sample,"data.frame")
@@ -156,10 +189,7 @@ names(rating_counts)[1] <- "Anime_Name"
 rating_counts <- rating_counts %>% arrange(rating_counts$Num_Ratings, decreasing = TRUE)
 rating_counts[8,1] <- "Fullmetal Alchemist: Brotherhood"
 rating_counts[7,1] <- "Code Geass: Lelouch of the Rebellion"
-```
 
-
-```{r, warning=FALSE}
 rating_counts[1:10,] %>%
   ggplot(aes(x = reorder(Anime_Name, -Num_Ratings),y=Num_Ratings,fill=Num_Ratings)) +
   scale_fill_continuous(low="blue", high="red") +
@@ -225,7 +255,7 @@ Example: given =-5 excludes 5 ratings from all users to be used in the test set.
 
 In order to evaluate our algorithms, RecommenderLab uses the evaluationScheme function to split the data into train/test sets. There are a few methods available to use, most notably the split and cross methods. 
 
-The split which splits the users into two groups based on the value of the train parameter and uses the first half of the split to train the model, and the second half to evaluate the model. If using an all-but-x scheme, then the scheme uses only the second half of the split to exclude ratings from.
+The split method which splits the users into two groups based on the value of the train parameter and uses the first half of the split to train the model, and the second half to evaluate the model. If using an all-but-x scheme, then the scheme uses only the second half of the split to exclude ratings from.
 Example: method="split", train = 0.9, given = -5  excludes 5 ratings from 10% of users to be used in the test set.
 
 The cross method uses k-fold cross validation and uses the user specified k-value as the number of folds.
@@ -253,8 +283,6 @@ anime_eval_cross_min <- evaluationScheme(data = ratingmat_sample,
                                k=4,
                                given = min(rowCounts(ratingmat_sample)),
                                goodRating = 5)
-save(anime_eval_split_min, anime_eval_split_allbut5,anime_eval_cross_allbut5, anime_eval_cross_min,file="anime_eval_schemes.rda")
-load("anime_eval_schemes.rda")
 ```
 
 ## Which models are available in recommenderlab?
@@ -283,6 +311,7 @@ ggplot(data=kvalue_error_IBCF_split_min, aes(k_value,value,col=variable)) +
 ```
 
 
+
 The error seems to be lowest at small values of K.
 
 
@@ -308,6 +337,7 @@ The values seems to be lowest at low values of K.
 # ibcf_model3 <- Recommender(getData(anime_eval_cross_allbut5,"train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50))
 # ibcf_model4 <- Recommender(getData(anime_eval_cross_min,"train"), method = "IBCF", param = list(normalize = "center", method="Cosine", k=50))
 # save(ibcf_model,ibcf_model2,ibcf_model3,ibcf_model4, file="ibcf_models.rda")
+
 # Loading model objects to save time
 load("ibcf_models.rda")
 ```
@@ -353,8 +383,8 @@ We can see that increasing the number of nearest neighbors decreases all types o
 # ubcf_model2 <- Recommender(getData(anime_eval_split_allbut5,"train"),method = "UBCF",param = list(normalize = "center",method="Cosine",nn=50))
 # ubcf_model3 <- Recommender(getData(anime_eval_cross_allbut5,"train"),method = "UBCF",param = list(normalize = "center",method="Cosine",nn=50))
 # ubcf_model4 <- Recommender(getData(anime_eval_cross_min,"train"),method = "UBCF",param = list(normalize = "center",method="Cosine",nn=50))
-# 
 # save(ubcf_model,ubcf_model2,ubcf_model3,ubcf_model4, file="ubcf_models.rda")
+
 # Loading model objects to save time
 load("ubcf_models.rda")
 ```
@@ -414,6 +444,7 @@ load("svd_models.rda")
 #   weights = c(0.4, 0.2, 0.2, 0.2))
 # save(hybrid_model,hybrid_model2,hybrid_model3,hybrid_model4, file = "hybrid_models.rda")
 
+# Loading model objects to save time
 load("hybrid_models.rda")
 ```
 
@@ -458,6 +489,7 @@ MSE - similar to MAE, but it uses the squared value of the differences
 # 
 # save(ibcf_predict, ibcf_predict2, ibcf_predict3, ibcf_predict4, ubcf_predict, ubcf_predict2, ubcf_predict3, ubcf_predict4, als_predict, als_predict2, als_predict3, als_predict4, svd_predict, svd_predict2, svd_predict3, svd_predict4, hybrid_predict, hybrid_predict2, hybrid_predict3, hybrid_predict4, file = "prediction_models.rda")
 
+# Loading prediction objects to save time
 load("prediction_models.rda")
 ```
 
@@ -490,10 +522,11 @@ svd3 = calcPredictionAccuracy(svd_predict3, getData(anime_eval_cross_allbut5, "u
 svd4= calcPredictionAccuracy(svd_predict4, getData(anime_eval_cross_min, "unknown")))
 
 error5 <- rbind(
-h = calcPredictionAccuracy(hybrid_predict, getData(anime_eval_split_min, "unknown")),
-h2 = calcPredictionAccuracy(hybrid_predict2, getData(anime_eval_split_allbut5, "unknown")),
-h3 = calcPredictionAccuracy(hybrid_predict3, getData(anime_eval_cross_allbut5, "unknown")),
-h4 = calcPredictionAccuracy(hybrid_predict4, getData(anime_eval_cross_min, "unknown")))
+hybrid = calcPredictionAccuracy(hybrid_predict, getData(anime_eval_split_min, "unknown")),
+hybrid2 = calcPredictionAccuracy(hybrid_predict2, getData(anime_eval_split_allbut5, "unknown")),
+hybrid3 = calcPredictionAccuracy(hybrid_predict3, getData(anime_eval_cross_allbut5, "unknown")),
+hybrid4 = calcPredictionAccuracy(hybrid_predict4, getData(anime_eval_cross_min, "unknown")))
+
 
 error_total <- rbind(as.data.frame(error),as.data.frame(error2),as.data.frame(error3),as.data.frame(error4),as.data.frame(error5))
 error_total
@@ -505,10 +538,10 @@ error_total
 error_total[ "algo_type" ] <- rownames(error_total)
 error_total_melted <- melt(error_total, id.vars = "algo_type")
 
-error_total_split_min <- error_total[c("ibcf","ubcf","als","svd","h"),]
-error_total_split_allbut5 <- error_total[c("ibcf2","ubcf2","als2","svd2","h2"),]
-error_total_cross_allbut5 <- error_total[c("ibcf3","ubcf3","als3","svd3","h3"),]
-error_total_cross_min <- error_total[c("ibcf4","ubcf4","als4","svd4","h4"),]
+error_total_split_min <- error_total[c("ibcf","ubcf","als","svd","hybrid"),]
+error_total_split_allbut5 <- error_total[c("ibcf2","ubcf2","als2","svd2","hybrid2"),]
+error_total_cross_allbut5 <- error_total[c("ibcf3","ubcf3","als3","svd3","hybrid3"),]
+error_total_cross_min <- error_total[c("ibcf4","ubcf4","als4","svd4","hybrid4"),]
 
 error_total_split_min_melted <- melt(error_total_split_min, id.vars = "algo_type")
 error_total_split_allbut5_melted <- melt(error_total_split_allbut5, id.vars = "algo_type")
@@ -520,14 +553,16 @@ ggplot(data = error_total_melted,aes(x=reorder(algo_type,value),y=value,fill=var
   labs(x="Algorithm Type") +
   labs(y="Total Error Value") +
   labs(col="Error Type") +
-  ggtitle("Error Values for All Different Algorithms and Schemes")
+  ggtitle("Error Values for All Different Algorithms and Schemes")+ 
+  theme(axis.text.x = element_text(angle = 90))
 
 ggplot(data = error_total_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
   geom_bar(stat = 'identity') +
   labs(x="Algorithm Type") +
   labs(y="Total Error Value") +
   labs(col="Error Type") +
-  ggtitle("Error Values for All Different Algorithms and Schemes")
+  ggtitle("Error Values for All Different Algorithms and Schemes")+ 
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 ```{r}
@@ -537,7 +572,7 @@ ggplot(data = error_total_split_min_melted,aes(x=reorder(algo_type,value),y=valu
   labs(y="Error Value") +
   labs(col="Error Type") +
   ylim(0,10)+
-  ggtitle("Error Values for All Different Algorithms, Using Split + Minimum Given Values")
+  ggtitle("Error Values for All Different Algorithms, Using Split + Min Given")
 
 ggplot(data = error_total_split_allbut5_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
   geom_bar(stat = 'identity') +
@@ -545,7 +580,7 @@ ggplot(data = error_total_split_allbut5_melted,aes(x=reorder(algo_type,value),y=
   labs(y="Error Value") +
   labs(col="Error Type") +
   ylim(0,10)+
-  ggtitle("Error Values for All Different Algorithms, Using Split + All-But-5 Given Values")
+  ggtitle("Error Values for All Different Algorithms, Using Split + All-But-5")
 
 ggplot(data = error_total_cross_allbut5_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
   geom_bar(stat = 'identity') +
@@ -553,7 +588,7 @@ ggplot(data = error_total_cross_allbut5_melted,aes(x=reorder(algo_type,value),y=
   labs(y="Error Value") +
   labs(col="Error Type") +
   ylim(0,10)+
-  ggtitle("Error Values for All Different Algorithms, Using Cross + All-But-5 Given Values")
+  ggtitle("Error Values for All Different Algorithms, Using Cross + All-But-5")
 
 ggplot(data = error_total_cross_min_melted,aes(x=reorder(algo_type,value),y=value,fill=variable)) +
   geom_bar(stat = 'identity') +
@@ -561,7 +596,7 @@ ggplot(data = error_total_cross_min_melted,aes(x=reorder(algo_type,value),y=valu
   labs(y="Error Value") +
   labs(col="Error Type") +
   ylim(0,10)+
-  ggtitle("Error Values for All Different Algorithms, Using Cross + Minimum Given Values")
+  ggtitle("Error Values for All Different Algorithms, Using Cross + Min Given")
 ```
 
 In general, using all-but-5 as the "given" parameter within Recommenderlab generates results with lower error values. It is more computationally expensive, but since we are already sampling our data, it doesn't add much to computation time. Using all-but-5 makes it so that the models are able to use more data for training instead of being limited to the minimum value of 89 (in our case), the models can make use of users who have ratings much greater than 89.
@@ -586,8 +621,6 @@ algorithms <- list(
   "Random"= list(name="Random")
   )
 results <- evaluate(anime_eval_split_allbut5, algorithms,type="topNList", n = c(1, 3, 5, 10,15, 20))
-save(results, file="roc_results.rda")
-load("roc_results.rda")
 ```
 
 
@@ -598,6 +631,22 @@ title("ROC Curve")
 plot(results, "prec/rec", annotate = T, legend = "topright")
 title("Pecision-Recall")
 ```
+
+Precision_recall Curve is being dominated by the Popular algorithm, so lets look at it without this algorithm.
+
+```{r}
+algorithms <- list(
+  "item-based CF" = list(name="IBCF", param = list(normalize = "center", method="Cosine", k=50)),
+  "user-based CF" = list(name="UBCF", param = list(normalize = "center",method="Cosine",nn=50)),
+  "ALS" = list(name="ALS", param = list(n_iterations = 5)),
+  "SVD" = list(name="SVD"),
+  "Random"= list(name="Random")
+  )
+results <- evaluate(anime_eval_split_allbut5, algorithms,type="topNList", n = c(1, 3, 5, 10,15, 20))
+plot(results, "prec/rec", annotate = T, legend = "topright")
+title("Pecision-Recall")
+```
+
 
 ## Which Models Performed the Best?
 

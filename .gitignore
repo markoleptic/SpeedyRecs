@@ -5,3 +5,6 @@ watching_status.csv
 .Rproj.user
 .RData
 .Rhistory
+*.rda
+*.html
+rsconnect/
