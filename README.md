@@ -11,19 +11,12 @@ Speedy Recs is an anime recommender system developed by Mark Cunningham, Ethan S
 
 ## Usage
 1. Clone the repository: `git clone https://github.com/markoleptic/CS5593-Project.git`
-2. Open the Shiny application using RStudio: `runApp("app.R")`
-3. Input your preferences for anime to receive recommendations.
-
-## Repository Structure
-- `data`: Contains the dataset and preprocessed files.
-- `src`: Source code files, including algorithm implementations and the Shiny application.
-- `docs`: Documentation, including this README.
-
-## How to Use
-1. Install required packages: `install.packages(c("shiny", "recommenderlab"))`
 2. Download anime.csv and rating_complete.csv from [Kaggle](https://www.kaggle.com/datasets/hernan4444/anime-recommendation-database-2020) and place into the root directory.
-3. Open `app.R` in RStudio.
-4. Run the Shiny application.
+3. Install required packages: `install.packages(c("shiny", "recommenderlab"))` (There's probably more than just that).
+4. Open the RStudio project using RStudio: `SpeedyRecs.Rproj `
+5. Run the entire `Project.Rmd` file to generate all the models. This might take a while.
+6. In the console, type `shiny::runApp()` to start the ShinyApp
+7. Input your ratings to receive recommendations.
 
 ## Contributors
 - Mark Cunningham (markcham@ou.edu)
