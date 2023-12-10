@@ -1,7 +1,7 @@
 # Speedy Recs: Anime Recommender System
 
 ## Abstract
-Speedy Recs is an anime recommender system developed by Mark Cunningham, Ethan Saloom, and Branson Stickney. This system utilizes five different algorithms, including User-Based Collaborative Filtering (UBCF), Item-Based Collaborative Filtering (IBCF), Singular Value Decomposition (SVD), Alternating Least Squares (ALS), and a hybrid model. We obtained data from [Kaggle](https://www.kaggle.com/datasets/hernan4444/anime-recommendation-database-2020), which was scraped from MyAnimeList, preprocessed it using RStudio, and evaluated the models for performance using various metrics.
+Speedy Recs is an anime recommender system devolped in RStudio using five different algorithms, including User-Based Collaborative Filtering (UBCF), Item-Based Collaborative Filtering (IBCF), Singular Value Decomposition (SVD), Alternating Least Squares (ALS), and a hybrid model. We obtained data from [Kaggle](https://www.kaggle.com/datasets/hernan4444/anime-recommendation-database-2020), which was scraped from MyAnimeList, preprocessed it using RStudio, and evaluated the models for performance using various metrics.
 
 ## Features
 - Utilizes UBCF, IBCF, SVD, ALS, and a hybrid model for anime recommendations.
@@ -58,6 +58,10 @@ Speedy Recs is an anime recommender system developed by Mark Cunningham, Ethan S
 5. Run the entire `Project.Rmd` file to generate all the models. This might take a while.
 6. In the console, type `shiny::runApp()` to start the ShinyApp
 7. Input your ratings to receive recommendations.
+
+## Additional File Info
+- R_Program_Output.pdf: This is the resulting pdf after running Project.Rmd
+- Report.pdf: A report for the project containing a full explanation, analysis, and conclusions for the project.
 
 ## Contributors
 - Mark Cunningham (markcham@ou.edu)
