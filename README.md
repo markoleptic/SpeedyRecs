@@ -1,4 +1,4 @@
-# Speedy Recs: Anime Recommender System
+# SpeedyRecs: Anime Recommender System
 
 ## Abstract
 Speedy Recs is an anime recommender system devolped in RStudio using five different algorithms, including User-Based Collaborative Filtering (UBCF), Item-Based Collaborative Filtering (IBCF), Singular Value Decomposition (SVD), Alternating Least Squares (ALS), and a hybrid model. We obtained data from [Kaggle](https://www.kaggle.com/datasets/hernan4444/anime-recommendation-database-2020), which was scraped from MyAnimeList, preprocessed it using RStudio, and evaluated the models for performance using various metrics.
@@ -13,18 +13,18 @@ Speedy Recs is an anime recommender system devolped in RStudio using five differ
   <h2 align="center"><b>Previewing the Data</b></h2>
   <tr>
     <td width=50%>
-        <img src="https://github.com/markoleptic/CS5593-Project/assets/86213229/a85e97bf-59e8-4a33-bc52-9e53594c8943" alt="Ratings Distribution Overall">
+        <img src="https://github.com/markoleptic/SpeedyRecs/assets/86213229/a85e97bf-59e8-4a33-bc52-9e53594c8943" alt="Ratings Distribution Overall">
     </td>
     <td width=50%>
-        <img src="https://github.com/markoleptic/CS5593-Project/assets/86213229/51f0c9e4-04c9-4460-a45a-c4bccaff792d" alt="Ratings Distribution Normalized">
+        <img src="https://github.com/markoleptic/SpeedyRecs/assets/86213229/51f0c9e4-04c9-4460-a45a-c4bccaff792d" alt="Ratings Distribution Normalized">
     </td>
   </tr>
   <tr>
     <td width=50%>
-      <img src="https://github.com/markoleptic/CS5593-Project/assets/86213229/8d3e1c28-34dd-4da4-a974-ba160ce8bdc1" alt="Ratings Per User">
+      <img src="https://github.com/markoleptic/SpeedyRecs/assets/86213229/8d3e1c28-34dd-4da4-a974-ba160ce8bdc1" alt="Ratings Per User">
     </td>
     <td width=50%>
-      <img src="https://github.com/markoleptic/CS5593-Project/assets/86213229/a868bcb6-e1bb-477a-8cf1-58bf33d8926b" alt="User Similarity">
+      <img src="https://github.com/markoleptic/SpeedyRecs/assets/86213229/a868bcb6-e1bb-477a-8cf1-58bf33d8926b" alt="User Similarity">
     </td>
   </tr>
 </table>
@@ -32,8 +32,8 @@ Speedy Recs is an anime recommender system devolped in RStudio using five differ
 <table>
   <h2 align="center"><b>Error Values for Different Algorithms</b></h2>
   <tr>
-    <td width=50%><img src="https://github.com/markoleptic/CS5593-Project/assets/86213229/70a9a299-65c5-41ab-9159-92a7db03c98b" alt="Error Values Across All Algos and Schemes"></td>
-    <td width=50%><img src="https://github.com/markoleptic/CS5593-Project/assets/86213229/91cd6d12-a0b5-44c2-b3bc-4c81403079d0" alt="Error Values Across All Algos and Schemes"></td>
+    <td width=50%><img src="https://github.com/markoleptic/SpeedyRecs/assets/86213229/70a9a299-65c5-41ab-9159-92a7db03c98b" alt="Error Values Across All Algos and Schemes"></td>
+    <td width=50%><img src="https://github.com/markoleptic/SpeedyRecs/assets/86213229/91cd6d12-a0b5-44c2-b3bc-4c81403079d0" alt="Error Values Across All Algos and Schemes"></td>
   </tr>
 </table>
 
@@ -45,7 +45,7 @@ Speedy Recs is an anime recommender system devolped in RStudio using five differ
   </h2>
   <tr align="center">
     <td align="center">
-      <img src="https://github.com/markoleptic/CS5593-Project/assets/86213229/61127a25-d91f-4fb6-bc61-3c307c66ed47" alt="Shiny App User Interface">
+      <img src="https://github.com/markoleptic/SpeedyRecs/assets/86213229/61127a25-d91f-4fb6-bc61-3c307c66ed47" alt="Shiny App User Interface">
     </td>
   </tr>
 </table>
